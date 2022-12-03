@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# Copyright (C) 2017 Dylan Schacht
+
+. libanarchy.sh
+. /etc/anarchy.conf
+. /etc/anarchy-packages.ini
+. /usr/share/anarchy/lang/english.conf
+
+# Starts on bootup
+start_menu() {
+  op_title="${welcome_op_msg}"
+  # Only run if the start menu hasn't been run already
+  if [ ! -f /root/.anarchy_updated ]; then
+    dialog --clear \
+      --title 'About Anarchy Installer' \
+      --msgbox "\n${start_menu_msg}\n\n${start_menu_social}" 18 80
+
+    # Ask the user what they want to do, default to updating anarchy
+    menu_choice="$(dialog --menu "What do you want to do?" 18 80 5 \
+      "Update" "Update anarchy and start the installation" \
+      "Start" "Start the installation" \
+      "Exit" "Drop into a shell (run 'anarchy' to return)" 3>&1 1>&2 2>&3)"
+
+    log "Start menu: chose to ${menu_choice}"
+
+    case "${menu_choice}" in
+    Update)
+      (
+        sh /usr/bin/anarchy-update
+      ) &>/dev/null &
+      pid=$! pri=0.3 msg="\n${anarchy_update} \n\n \Z1> \Z2Anarchy Update...\Zn" load
+      ;;
+    Start) touch /root/.anarchy_updated ;; # Pretend user has updated
+    Exit) reset && exit ;;
+    esac
+  fi
+}
+
+init() {
+  # Execute trap when CTRL+C is pressed (SIGINT)
+  trap force_quit SIGINT
+
+  anarchy_directory='/usr/share/anarchy'
+
+  for library in /usr/lib/anarchy/*; do
+    . "${library}"
+  done
+
+  language
+  . "${lang_file}"
+  export reload=true
+
+  # Start NetworkManager
+  systemctl start NetworkManager.service
+}
+
+main() {
+  if [ "$(id -u)" -ne 0 ]; then
+    echo "Error: $0 requires root privileges"
+    echo "    Use: sudo $0"
+    exit 1
+  fi
+
+  set_keyboard_layout
+  start_menu
+  update_mirrors
+  get_connection_info
+  set_locale
+  set_zone
+  prepare_drives
+  install_options
+  set_hostname
+  set_user
+  install_base
+  configure_system
+  add_user
+  reboot_system
+}
+
+#init
+#main

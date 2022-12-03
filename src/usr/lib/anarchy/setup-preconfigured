@@ -1,0 +1,218 @@
+#!/usr/bin/env bash
+
+quick_install() {
+  case "${install_opt}" in
+  Anarchy-Desktop)
+    kernel="linux"
+    sh="/usr/bin/zsh"
+    shrc="${default}"
+    bootloader="grub"
+    net_util="networkmanager"
+    enable_nm=true
+    multilib=true
+    dhcp=false
+    desktop=true
+    base_install="${pkglist_anarchy_desktop} ${UCODE} "
+
+    if "${bluetooth}"; then
+      base_install+="${pkglist_bluetooth}"
+      enable_bt=true
+      log "Added bluetooth support"
+    fi
+
+    if "${enable_f2fs}"; then
+      base_install+="f2fs-tools "
+      log "Added f2fs-tools"
+    fi
+
+    if "${UEFI}"; then
+      base_install+="efibootmgr "
+      log "Added efibootmgr"
+    fi
+
+    quick_desktop
+    base_install+="${DE} "
+    ;;
+  Anarchy-Desktop-LTS)
+    kernel="linux-lts"
+    sh="/usr/bin/zsh"
+    shrc="${default}"
+    bootloader="grub"
+    net_util="networkmanager"
+    enable_nm=true
+    multilib=true
+    dhcp=false
+    desktop=true
+    base_install="${pkglist_anarchy_desktop_lts} ${UCODE} "
+
+    if "${bluetooth}"; then
+      base_install+="${pkglist_bluetooth}"
+      enable_bt=true
+      log "Added bluetooth support"
+    fi
+
+    if "${enable_f2fs}"; then
+      base_install+="f2fs-tools "
+      log "Added f2fs-tools"
+    fi
+
+    if "${UEFI}"; then
+      base_install+="efibootmgr "
+      log "Added efibootmgr"
+    fi
+
+    quick_desktop
+    base_install+="${DE} "
+    ;;
+  Anarchy-Server)
+    kernel="linux"
+    sh="/usr/bin/zsh"
+    shrc="${default}"
+    bootloader="grub"
+    net_util="networkmanager"
+    enable_nm=true
+    multilib=true
+    dhcp=false
+    base_install="${pkglist_anarchy_server} ${UCODE} "
+
+    if "${bluetooth}"; then
+      base_install+="${pkglist_bluetooth}"
+      enable_bt=true
+      log "Added bluetooth support"
+    fi
+
+    if "${enable_f2fs}"; then
+      base_install+="${pkglist_f2fstools}"
+      log "Added f2fs-tools"
+    fi
+
+    if "${UEFI}"; then
+      base_install+="${pkglist_efibootmgr}"
+      log "Added efibootmgr"
+    fi
+    ;;
+  Anarchy-Server-LTS)
+    kernel="linux-lts"
+    sh="/usr/bin/zsh"
+    shrc="${default}"
+    bootloader="grub"
+    net_util="networkmanager"
+    enable_nm=true
+    multilib=true
+    dhcp=false
+    base_install="${pkglist_anarchy_server_lts} ${UCODE} "
+
+    if "${bluetooth}"; then
+      base_install+="${pkglist_bluetooth}"
+      enable_bt=true
+      log "Added bluetooth support"
+    fi
+
+    if "${enable_f2fs}"; then
+      base_install+="${pkglist_f2fstools}"
+      log "Added f2fs-tools"
+    fi
+
+    if "${UEFI}"; then
+      base_install+="${pkglist_efibootmgr}"
+      log "Added efibootmgr"
+    fi
+    ;;
+  esac
+}
+
+quick_desktop() {
+  while (true); do
+    de=$(dialog --ok-button "${done_msg}" --cancel-button "${cancel}" --menu "${environment_msg}" 14 60 5 \
+      "Anarchy-budgie" "${de24}" \
+      "Anarchy-cinnamon" "${de23}" \
+      "Anarchy-gnome" "${de22}" \
+      "Anarchy-openbox" "${de18}" \
+      "Anarchy-xfce4" "${de15}" 3>&1 1>&2 2>&3)
+
+    if [ -z "${de}" ]; then
+      if (yesno "\n${desktop_cancel_msg}" "${yes}" "${no}"); then
+        return
+      fi
+    else
+      break
+    fi
+  done
+
+  case "${de}" in
+  "Anarchy-xfce4")
+    config_env="${de}"
+    start_term="exec startxfce4"
+    DE+="${pkglist_anarchy_xfce4}"
+    ;;
+  "Anarchy-budgie")
+    config_env="${de}"
+    start_term="export XDG_CURRENT_DESKTOP=Budgie:GNOME ; exec budgie-desktop"
+    DE+="${pkglist_anarchy_budgie}"
+    ;;
+  "Anarchy-cinnamon")
+    config_env="${de}"
+    DE+="${pkglist_anarchy_cinnamon}"
+    start_term="exec cinnamon-session"
+    ;;
+  "Anarchy-gnome")
+    config_env="${de}"
+    start_term="exec gnome-session"
+    DE+="${pkglist_anarchy_gnome}"
+    ;;
+  "Anarchy-openbox")
+    config_env="${de}"
+    start_term="exec openbox-session"
+    DE+="${pkglist_anarchy_openbox}"
+    ;;
+  esac
+
+  while (true); do
+    if "${VM}"; then
+      case "${virt}" in
+      qemu)
+        GPU="${pkglist_vm_qemu}"
+        log "Added QEMU guest utils"
+        ;;
+      vbox)
+        GPU="${pkglist_vm_vbox}"
+        log "Added VirtualBox guest utils"
+        ;;
+      vmware)
+        GPU="${pkglist_vm_vmware}"
+        log "Added VMWare guest utils"
+        ;;
+      hyper-v)
+        GPU="${pkglist_vm_hyperv}"
+        log "Added HyperV guest utils"
+        ;;
+      *)
+        GPU="${pkglist_vm_any}"
+        log "Added generic VM guest utils"
+        ;;
+      esac
+      break
+    else
+      GPU="${default_GPU} "
+      break
+    fi
+  done
+
+  DE+="${GPU} ${pkglist_de_defaults} "
+
+  if [ "${net_util}" == "networkmanager" ]; then
+    if (grep <<<"${DE}" "plasma" &>/dev/null); then
+      DE+="plasma-nm "
+    else
+      DE+="network-manager-applet "
+    fi
+  fi
+
+  if "${enable_bt}"; then
+    DE+="${pkglist_blueman}"
+  fi
+
+  DM="${pkglist_lightdm}"
+  enable_dm=true
+  log "Enabled lightdm"
+}
